@@ -41,6 +41,7 @@ static int Xecho(void);
 static int Xhelp(void);
 static int Xls(void);
 static int Xnop(void);
+static int Xascii(void);
 static int Xreboot(void);
 static int Xstty(void);
 static int Xtime(void);
@@ -61,6 +62,7 @@ const struct cmd_table cmd_table[] = {
 	{"boot",   CMDT_CMD, Xboot},
 	{"echo",   CMDT_CMD, Xecho},
 	{"env",    CMDT_CMD, Xenv},
+	{"ascii",  CMDT_CMD, Xascii},
 	{"help",   CMDT_CMD, Xhelp},
 	{"ls",     CMDT_CMD, Xls},
 #ifdef MACHINE_CMD
@@ -477,6 +479,77 @@ Xnop(void)
 
 	return 0;
 }
+
+static int
+Xascii(void)
+{
+	char * filename;
+	if (cmd.argc > 1 && cmd.argv[1][0] != '-') {
+		filename = qualify(cmd.argv[1]);
+	
+#ifndef INSECURE
+		struct stat sb;
+#endif
+		int fd, rc = 0;
+
+		if ((fd = open(filename, 0)) < 0) {
+			if (errno != ENOENT && errno != ENXIO) {
+				printf("open(%s): %s\n", cmd.path, strerror(errno));
+				return 0;
+			}
+			return -1;
+		}
+
+#ifndef INSECURE
+		(void) fstat(fd, &sb);
+		if (sb.st_uid || (sb.st_mode & 2)) {
+			printf("non-secure %s, will not proceed\n", cmd.path);
+			close(fd);
+			return -1;
+		}
+#endif
+
+		int n_lines = 0;
+		do {
+			char *p = cmd_buf;
+			cmd.cmd = NULL;
+	
+			do {
+				rc = read(fd, p, 1);
+				if((*p != '\n' && *p != 0)  && (*p < ' ' || *p > '~')) *p = ' ';
+			} while (rc > 0 && *p++ != '\n' &&
+			    (p-cmd_buf) < sizeof(cmd_buf));
+	
+			if (rc < 0) {			/* Error from read() */
+				printf("%s: %s\n", filename, strerror(errno));
+				break;
+			}
+	
+			if (rc == 0) {			/* eof from read() */
+				if (p != cmd_buf) {	/* Line w/o trailing \n */
+					*p = '\0';
+					n_lines ++ ;
+					printf("%s\n",cmd_buf);
+				}
+				break;
+			} else {			/* rc > 0, read a char */
+				p--;			/* Get back to last character */
+	
+				*p = '\0';
+				n_lines++;
+				printf("%s\n",cmd_buf);
+			}
+			
+			} while (rc > 0 && n_lines < 50);
+		close(fd);
+	
+	} else {
+		printf("specify filename: ascii <file>\n");
+		return 1;
+	}
+	return 0;
+}
+
 
 static int
 Xboot(void)
