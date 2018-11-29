@@ -2209,14 +2209,24 @@ acpi_gpe(struct acpi_softc *sc, int gpe, void *arg)
 	struct aml_node *node = arg;
 	uint8_t mask, en;
 
-	dnprintf(10, "handling GPE %.2x\n", gpe);
-	aml_evalnode(sc, node, 0, NULL, NULL);
+	if (!sc->gpe_table[gpe].edge && gpe == 111) {
+		static unsigned short i;
+		if (i == 0) {
+			i++;
+			printf("acpi_gpe %d %s IGNORING\n", gpe, node->name);
+		}
+	} else {
+		printf("acpi_gpe %d %s\n", gpe, node->name);
 
-	mask = (1L << (gpe & 7));
-	if (!sc->gpe_table[gpe].edge)
-		acpi_write_pmreg(sc, ACPIREG_GPE_STS, gpe>>3, mask);
-	en = acpi_read_pmreg(sc, ACPIREG_GPE_EN,  gpe>>3);
-	acpi_write_pmreg(sc, ACPIREG_GPE_EN,  gpe>>3, en | mask);
+		dnprintf(10, "handling GPE %.2x\n", gpe);
+		aml_evalnode(sc, node, 0, NULL, NULL);
+
+		mask = (1L << (gpe & 7));
+		if (!sc->gpe_table[gpe].edge)
+			acpi_write_pmreg(sc, ACPIREG_GPE_STS, gpe>>3, mask);
+		en = acpi_read_pmreg(sc, ACPIREG_GPE_EN,  gpe>>3);
+		acpi_write_pmreg(sc, ACPIREG_GPE_EN,  gpe>>3, en | mask);
+	}
 	return (0);
 }
 
