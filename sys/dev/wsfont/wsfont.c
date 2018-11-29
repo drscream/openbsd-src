@@ -43,6 +43,11 @@
 
 #undef HAVE_FONT
 
+#ifdef FONT_TERMINUS148x14
+#define HAVE_FONT 1
+#include <dev/wsfont/terminus148x14.h>
+#endif
+
 #ifdef FONT_SPLEEN5x8
 #define HAVE_FONT 1
 #include <dev/wsfont/spleen5x8.h>
@@ -113,6 +118,9 @@ static struct font builtin_fonts[] = {
 #endif
 #ifdef FONT_SPLEEN5x8
 	BUILTIN_FONT(spleen5x8, 4),
+#endif
+#ifdef FONT_TERMINUS148x14
+	BUILTIN_FONT(terminus148x14, 5),
 #endif
 #undef BUILTIN_FONT
 };
