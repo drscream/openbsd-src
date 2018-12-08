@@ -1,4 +1,4 @@
-/*	$OpenBSD: smtp_report.c,v 1.4 2018/11/08 13:21:00 gilles Exp $	*/
+/*	$OpenBSD: smtp_report.c,v 1.7 2018/12/06 16:05:04 gilles Exp $	*/
 
 /*
  * Copyright (c) 2018 Gilles Chehade <gilles@poolp.org>
@@ -44,7 +44,7 @@
 #include "rfc5322.h"
 
 void
-smtp_report_link_connect(uint64_t qid, const char *rdns,
+smtp_report_link_connect(uint64_t qid, const char *rdns, int fcrdns,
     const struct sockaddr_storage *ss_src,
     const struct sockaddr_storage *ss_dest)
 {
@@ -52,6 +52,7 @@ smtp_report_link_connect(uint64_t qid, const char *rdns,
 	m_add_time(p_lka, time(NULL));
 	m_add_id(p_lka, qid);
 	m_add_string(p_lka, rdns);
+	m_add_int(p_lka, fcrdns);
 	m_add_sockaddr(p_lka, (const struct sockaddr *)ss_src);
 	m_add_sockaddr(p_lka, (const struct sockaddr *)ss_dest);
 	m_close(p_lka);
@@ -87,6 +88,30 @@ smtp_report_tx_begin(uint64_t qid, uint32_t msgid)
 }
 
 void
+smtp_report_tx_mail(uint64_t qid, uint32_t msgid, const char *address, int ok)
+{
+	m_create(p_lka, IMSG_SMTP_REPORT_TX_MAIL, 0, 0, -1);
+	m_add_time(p_lka, time(NULL));
+	m_add_id(p_lka, qid);
+	m_add_u32(p_lka, msgid);
+	m_add_string(p_lka, address);
+	m_add_int(p_lka, ok);
+	m_close(p_lka);
+}
+
+void
+smtp_report_tx_rcpt(uint64_t qid, uint32_t msgid, const char *address, int ok)
+{
+	m_create(p_lka, IMSG_SMTP_REPORT_TX_RCPT, 0, 0, -1);
+	m_add_time(p_lka, time(NULL));
+	m_add_id(p_lka, qid);
+	m_add_u32(p_lka, msgid);
+	m_add_string(p_lka, address);
+	m_add_int(p_lka, ok);
+	m_close(p_lka);
+}
+
+void
 smtp_report_tx_envelope(uint64_t qid, uint32_t msgid, uint64_t evpid)
 {
 	m_create(p_lka, IMSG_SMTP_REPORT_TX_ENVELOPE, 0, 0, -1);
@@ -109,11 +134,12 @@ smtp_report_tx_commit(uint64_t qid, uint32_t msgid, size_t msgsz)
 }
 
 void
-smtp_report_tx_rollback(uint64_t qid)
+smtp_report_tx_rollback(uint64_t qid, uint32_t msgid)
 {
 	m_create(p_lka, IMSG_SMTP_REPORT_TX_ROLLBACK, 0, 0, -1);
 	m_add_time(p_lka, time(NULL));
 	m_add_id(p_lka, qid);
+	m_add_u32(p_lka, msgid);
 	m_close(p_lka);
 }
 

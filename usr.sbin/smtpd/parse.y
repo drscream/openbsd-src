@@ -1,4 +1,4 @@
-/*	$OpenBSD: parse.y,v 1.231 2018/11/29 12:48:16 gilles Exp $	*/
+/*	$OpenBSD: parse.y,v 1.233 2018/12/06 13:57:06 gilles Exp $	*/
 
 /*
  * Copyright (c) 2008 Gilles Chehade <gilles@poolp.org>
@@ -175,7 +175,7 @@ typedef struct {
 %token	BACKUP BOUNCE
 %token	CA CERT CHROOT CIPHERS COMMIT COMPRESSION CONNECT
 %token	CHECK_RDNS CHECK_REGEX CHECK_TABLE
-%token	DATA DHE DISCONNECT DOMAIN
+%token	DATA DATA_LINE DHE DISCONNECT DOMAIN
 %token	EHLO ENABLE ENCRYPTION ERROR EXPAND_ONLY 
 %token	FILTER FOR FORWARD_ONLY FROM
 %token	GROUP
@@ -190,7 +190,7 @@ typedef struct {
 %token	PKI PORT PROC
 %token	QUEUE QUIT
 %token	RCPT_TO RECIPIENT RECEIVEDAUTH RELAY REJECT REPORT REWRITE RSET
-%token	SCHEDULER SENDER SENDERS SMTP SMTP_IN SMTPS SOCKET SRC SUB_ADDR_DELIM
+%token	SCHEDULER SENDER SENDERS SMTP SMTP_IN SMTP_OUT SMTPS SOCKET SRC SUB_ADDR_DELIM
 %token	TABLE TAG TAGGED TLS TLS_REQUIRE TTL
 %token	USER USERBASE
 %token	VERIFY VIRTUAL
@@ -491,11 +491,24 @@ REPORT SMTP_IN ON STRING {
 		YYERROR;
 	}
 	if (dict_get(conf->sc_smtp_reporters_dict, $4)) {
-		yyerror("processor already registered for smtp reporting: %s", $4);
+		yyerror("processor already registered for smtp-in reporting: %s", $4);
 		free($4);
 		YYERROR;
 	}
 	dict_set(conf->sc_smtp_reporters_dict, $4, (void *)~0);
+}
+| REPORT SMTP_OUT ON STRING {
+	if (! dict_get(conf->sc_processors_dict, $4)) {
+		yyerror("no processor exist with that name: %s", $4);
+		free($4);
+		YYERROR;
+	}
+	if (dict_get(conf->sc_mta_reporters_dict, $4)) {
+		yyerror("processor already registered for smtp-out reporting: %s", $4);
+		free($4);
+		YYERROR;
+	}
+	dict_set(conf->sc_mta_reporters_dict, $4, (void *)~0);
 }
 ;
 
@@ -1239,6 +1252,15 @@ DATA {
 } filter_action_proc
 ;
 
+filter_phase_data_line:
+DATA_LINE {
+	filter_rule->phase = FILTER_DATA_LINE;
+} filter_action_builtin
+| DATA_LINE {
+	filter_rule->phase = FILTER_DATA_LINE;
+} filter_action_proc
+;
+
 filter_phase_quit:
 QUIT {
 	filter_rule->phase = FILTER_QUIT;
@@ -1283,6 +1305,7 @@ filter_phase_connect
 | filter_phase_mail_from
 | filter_phase_rcpt_to
 | filter_phase_data
+| filter_phase_data_line
 | filter_phase_quit
 | filter_phase_noop
 | filter_phase_rset
@@ -1858,6 +1881,7 @@ lookup(char *s)
 		{ "compression",	COMPRESSION },
 		{ "connect",		CONNECT },
 		{ "data",		DATA },
+		{ "data-line",		DATA_LINE },
 		{ "dhe",		DHE },
 		{ "disconnect",		DISCONNECT },
 		{ "domain",		DOMAIN },
@@ -1915,6 +1939,7 @@ lookup(char *s)
 		{ "senders",   		SENDERS },
 		{ "smtp",		SMTP },
 		{ "smtp-in",		SMTP_IN },
+		{ "smtp-out",		SMTP_OUT },
 		{ "smtps",		SMTPS },
 		{ "socket",		SOCKET },
 		{ "src",		SRC },
