@@ -1,4 +1,4 @@
-/*	$OpenBSD: dhcpd.h,v 1.258 2018/11/11 00:49:05 krw Exp $	*/
+/*	$OpenBSD: dhcpd.h,v 1.262 2019/01/03 16:42:30 krw Exp $	*/
 
 /*
  * Copyright (c) 2004 Henning Brauer <henning@openbsd.org>
@@ -43,6 +43,7 @@
 #define	REMOTE_PORT	67
 #define	INTERNALSIG	SIG_ATOMIC_MAX
 #define DB_TIMEFMT	"%w %Y/%m/%d %T UTC"
+#define	RT_BUF_SIZE	2048
 
 struct option_data {
 	unsigned int	 len;
@@ -118,8 +119,8 @@ struct interface_info {
 	char			 name[IFNAMSIZ];
 	char			 ssid[32];
 	uint8_t			 ssid_len;
-	int			 bfdesc; /* bpf - reading & broadcast writing*/
-	int			 ufdesc; /* udp - unicast writing */
+	int			 bpffd; /* bpf - reading & broadcast writing*/
+	int			 udpfd; /* udp - unicast writing */
 	unsigned char		*rbuf;
 	size_t			 rbuf_max;
 	size_t			 rbuf_offset;
@@ -222,7 +223,7 @@ void		 dhcpnak(struct interface_info *, const char *);
 void		 bootreply(struct interface_info *, struct option_data *,
     const char *);
 void		 free_client_lease(struct client_lease *);
-void		 routehandler(struct interface_info *, int);
+void		 routefd_handler(struct interface_info *, int);
 
 /* packet.c */
 void		 assemble_eh_header(struct ether_addr, struct ether_header *);
